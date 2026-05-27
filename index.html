@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arena Master Matrix Scheduler</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="container">
+        
+        <header>
+            <img src="logo.jpg.jpg" alt="NIT Delhi Logo" class="college-logo">
+            <p class="institute-name">National Institute of Technology Delhi</p>
+            <h1>Tournament Fixtures Generator</h1>
+        </header>
+
+        <div class="input-section" id="step-1-card">
+            <h3> Step 1: Basic Configuration</h3>
+            <div class="config-grid">
+                <div class="form-group">
+                    <label for="tournament-type">Tournament Format:</label>
+                    <select id="tournament-type">
+                        <option value="round-robin">Round Robin (League)</option>
+                        <option value="knockout">Knockout (Bracket)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="team-count">Number of Teams:</label>
+                    <select id="team-count">
+                        <option value="3">3 Teams</option>
+                        <option value="4" selected>4 Teams</option>
+                        <option value="5">5 Teams</option>
+                        <option value="6">6 Teams</option>
+                        <option value="8">8 Teams</option>
+                    </select>
+                </div>
+            </div>
+            <button type="button" onclick="goToStep2()">Next: Configure Teams & Sports ▶</button>
+        </div>
+
+        <div class="input-section hidden" id="step-2-card">
+            <h3> Step 2: Register Team Profiles & Sports</h3>
+            <p style="color: #94a3b8; font-size: 0.9rem; margin-bottom: 20px;">
+                Enter names and select all the sports each specific team is registered to play.
+            </p>
+            
+            <div id="dynamic-team-profiles-container"></div>
+            
+            <div class="button-row" style="margin-top: 20px; display: flex; justify-content: space-between;">
+                <button type="button" class="btn-secondary" onclick="backToStep1()">◀ Back</button>
+                <button type="button" onclick="goToStep3()">Next: Set Dates & Time Slots ▶</button>
+            </div>
+        </div>
+
+        <div class="input-section hidden" id="step-3-card">
+            <h3> Step 3: Available Tournament Window</h3>
+            
+            <div class="config-grid" style="margin-bottom: 25px;">
+                <div class="form-group">
+                    <label for="start-date">Start Date:</label>
+                    <input type="date" id="start-date">
+                </div>
+                <div class="form-group">
+                    <label for="end-date">End Date (Optional Extension):</label>
+                    <input type="date" id="end-date">
+                </div>
+            </div>
+
+            <label style="display: block; text-align: left; font-size: 0.9rem; color: #94a3b8; margin-bottom: 10px; font-weight: 600;">
+                Select Active Time Slots for Matches:
+            </label>
+            
+            <div class="timeslots-grid" id="timeslots-checkbox-container"></div>
+
+            <div class="button-row" style="margin-top: 30px; display: flex; justify-content: space-between;">
+                <button type="button" class="btn-secondary" onclick="backToStep2()">◀ Back</button>
+                <button type="button" class="btn-success" onclick="generateAntiCollisionFixtures()"> Generate Matrix Schedule</button>
+            </div>
+        </div>
+
+        <div id="bracket-container"></div>
+
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
