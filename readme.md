@@ -1,6 +1,7 @@
 # Full-Stack Multi-Sport Tournament Scheduler Engine
-
+--- 
 A high-throughput web application designed to automate complex tournament scheduling. The core engine solves a multi-variable resource-allocation problem: scheduling matches for N teams across 10 distinct sports without causing venue collisions or player time-slot conflicts.
+
 --- 
 # The Problem & Engineering Constraints
 Manually scheduling a multi-sport tournament introduces severe logistical constraints rooted in the Pigeonhole Principle:
@@ -10,6 +11,7 @@ Team Collisions — A single team cannot participate in two different sports dur
 Sport Clumping — Sequential scheduling naturally groups identical sports together, creating a monotonous event timeline.
 
 This engine automates the entire allocation process, enforcing parallel resource constraints while randomizing match distribution for a balanced tournament calendar.
+
 ---
 # System Architecture & Pipeline
 The infrastructure decouples heavy matrix computations from the user-facing API threads to support concurrent administrative usage.
@@ -34,6 +36,7 @@ Collision Audit — Evaluates venue and player availability sequentially before 
 Primary Store — MongoDB Atlas (cloud-hosted replica set, Mongoose ODM).
 Caching Layer — Finalized schedules are mirrored to a Redis Cloud in-memory cache with a 24-hour TTL, serving subsequent reads with sub-millisecond latency.
 Graceful Degradation — Implements a Circuit Breaker pattern: if the Redis tier becomes unavailable, the backend automatically falls back to MongoDB with no user-facing disruption.
+
 --- 
 
 # Performance Benchmarks
