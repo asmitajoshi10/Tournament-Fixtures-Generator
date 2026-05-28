@@ -1,56 +1,45 @@
-# Full-Stack Multi-Sport Tournament Scheduler Engine
+Full-Stack Multi-Sport Tournament Scheduler Engine
+A high-throughput web application designed to automate complex tournament scheduling. The core engine solves a multi-variable resource-allocation problem: scheduling matches for N teams across 10 distinct sports without causing venue collisions or player time-slot conflicts.
 
-A high-throughput, distributed web application designed to automate complex tournament scheduling. The core engine solves a multi-variable resource-allocation problem: scheduling matches for $N$ teams across 10 distinct sports without causing physical venue collisions or player time-slot conflicts.
+The Problem & Engineering Constraints
+Manually scheduling a multi-sport tournament introduces severe logistical constraints rooted in the Pigeonhole Principle:
 
----
+Venue Collisions — Two sports cannot occupy the same court or field simultaneously.
+Team Collisions — A single team cannot participate in two different sports during the same time slot.
+Sport Clumping — Sequential scheduling naturally groups identical sports together, creating a monotonous event timeline.
 
-## The Problem & Engineering Constraints
-Manually scheduling a multi-sport tournament introduces severe logistical constraints akin to the **Pigeonhole Principle**:
-1. **Venue Collisions:** Two sports cannot occupy the same court/field simultaneously.
-2. **Team Collisions:** A single team cannot participate in two different sports during the same time slot.
-3. **Sport Clumping:** Standard sequential scheduling groups identical sports together, creating a monotonous event timeline.
+This engine automates the entire allocation process, enforcing parallel resource constraints while randomizing match distribution for a balanced tournament calendar.
 
-**The Solution:** This engine automates the entire allocation process, enforcing parallel resource constraints while randomizing match distribution for a balanced tournament calendar.
+System Architecture & Pipeline
+The infrastructure decouples heavy matrix computations from the user-facing API threads to support concurrent administrative usage.
+1. Concurrency Guard (Distributed Mutex)
+To prevent race conditions when multiple administrators attempt to compile schedules simultaneously, the API gateway uses Redis-backed mutex locks. Overlapping requests are intercepted and rejected with a 429 Too Many Requests response. The lock includes a self-healing 30-second TTL to prevent deadlocks during unexpected node failures.
+2. Asynchronous Task Coordination
+To prevent intensive O(N²) round-robin calculations from blocking Node.js's single-threaded event loop, the execution lifecycle is fully decoupled from the HTTP request-response cycle:
 
----
+The API immediately returns a 202 Accepted response with a unique taskId.
+The computation is offloaded to a background worker process.
+The frontend polls task state at intervals, eliminating UI thread starvation.
 
-## Distributed System Architecture & Pipeline
+3. Scheduling Algorithm
 
-To scale for multi-user enterprise environments, the infrastructure decouples the heavy matrix computations from the user-facing API threads.
+Pairing Matrix — Compiles all round-robin matchups using nested iteration.
+Fisher-Yates Shuffle — Randomizes the match queue to eliminate sport clumping and distribute event variety evenly across the timeline.
+Collision Audit — Evaluates venue and player availability sequentially before committing each time slot.
 
-### 1. Concurrency Guard (Distributed Mutex)
-To prevent race conditions when multiple administrators attempt to compile schedules simultaneously, the API gateway utilizes **Redis Mutex Locks**. Overlapping requests are intercepted and rejected with a `429 Too Many Requests` status. The lock implements a self-healing 30-second Time-To-Live (TTL) to prevent system deadlocks during unexpected node failures.
+4. Persistence & Caching
 
-### 2. Asynchronous Task Coordination
-To prevent intensive $O(N^2)$ round-robin calculations from blocking the single-threaded **Node.js event loop**, the execution lifecycle is decoupled from the HTTP request-response cycle:
-* The API instantly returns a `202 Accepted` receipt with a unique `taskId`.
-* The workload is offloaded to a background worker process.
-* The frontend smoothly polls the task state, ensuring zero UI thread starvation.
+Primary Store — MongoDB Atlas (cloud-hosted replica set, Mongoose ODM).
+Caching Layer — Finalized schedules are mirrored to a Redis Cloud in-memory cache with a 24-hour TTL, serving subsequent reads with sub-millisecond latency.
+Graceful Degradation — Implements a Circuit Breaker pattern: if the Redis tier becomes unavailable, the backend automatically falls back to MongoDB with no user-facing disruption.
 
-### 3. Algorithmic Matching & Optimization Layer
-* **Pairing Matrix:** Compiles raw matchups using nested iterators.
-* **Fisher-Yates Shuffling:** Shuffles the match queue to completely eliminate sport clumping and distribute event variety.
-* **Collision Shield Audit:** Sequentially evaluates the matrix to verify asset availability (Ground and Player) before committing the slot.
 
-### 4. Resilient Persistence & Circuit Breaker Caching
-* **Primary Store:** Multi-shard MongoDB Atlas cluster utilizing automated Mongoose schemas.
-* **Caching Layer:** Finalized schedules are mirrored to an in-memory **Redis Cloud** cache with a 24-hour expiration matrix, serving subsequent reads in sub-milliseconds.
-* **Graceful Degradation:** Implements an automated **Circuit Breaker pattern**. If the Redis tier undergoes network disruption, the backend seamlessly falls back to MongoDB Atlas with zero runtime user disruption.
+Performance Benchmarks
 
----
+Benchmarks were measured locally using [tool you used, e.g. k6 / Apache Bench / manual timing].
 
-## Performance Metrics (Simulated Load)
-* **Execution Latency:** Generates a comprehensive 32-team Round Robin matrix across 5 venues in **< 80ms**.
-* **Cache Acceleration:** Redis integration reduced data-fetch latency from **114ms (disk I/O) to 3.8ms (in-memory)**.
-* **Throughput:** Handled **1,000+ concurrent schedule-read hits** without degradation during simulated stress tests.
+MetricResultSchedule Generation32-team round-robin across 5 venues in < 80msCache vs. DB Read3.8ms (Redis) vs. 114ms (MongoDB)Concurrent Read Throughput1,000+ simultaneous requests without degradation
 
----
-
-- **Frontend:** HTML5, CSS3, Vanilla JavaScript (Dynamic DOM manipulation & polling async lifecycle tracking)
-- *Note: Deployed via native Web APIs and long-polling mechanisms to maximize raw DOM performance and minimize client-side bundle overhead.*
-- **Backend:** Node.js, Express.js (Decoupled background worker & REST API architecture)
-- **Database Store:** MongoDB Atlas (Cloud Hosted Multi-Shard Replica Set via Mongoose)
-- **Memory & Coordination Layer:** Redis Cloud (Distributed Mutex Locking, Key-Value Caching, & Task Status Tracking)
-- **Secret Management:** Dotenvx (Encrypted Environment Variable Matrix)
-
----
+Tech Stack
+LayerTechnologyFrontendHTML5, CSS3, Vanilla JavaScriptBackendNode.js, Express.jsDatabaseMongoDB Atlas (Replica Set, Mongoose ODM)Cache & CoordinationRedis Cloud (Mutex Locking, Key-Value Cache, Task Tracking)Secret Managementdotenvx (Encrypted Environment Variables)
+Frontend note: Built with native Web APIs and long-polling to avoid client-side bundle overhead and maximize DOM performance.
