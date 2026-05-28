@@ -94,7 +94,7 @@ function getDatesRange(start, end) {
 }
 
 /* ========================================================
-   TRUE PARALLEL MULTI-SPORT SCHEDULING ENGINE
+   TRUE PARALLEL MULTI-SPORT SCHEDULING ENGINE (ASYNC POLL)
    ======================================================= */
 function generateAntiCollisionFixtures() {
     const format = document.getElementById('tournament-type').value;
@@ -114,7 +114,6 @@ function generateAntiCollisionFixtures() {
         return;
     }
 
-    // Pack registered team payload records
     let registeredTeams = [];
     for (let i = 1; i <= teamCount; i++) {
         let nameInput = document.getElementById(`team-name-${i}`).value;
@@ -126,28 +125,22 @@ function generateAntiCollisionFixtures() {
         registeredTeams.push({ name: nameInput, sports: checkedSports });
     }
 
-    // Show a loading state on screen
-    displayArea.innerHTML = `<h3 style="color:#818cf8;">⚡ Computing Parallel Algorithms on Server... Please Wait...</h3>`;
+    displayArea.innerHTML = `<h3 style="color:#818cf8;">⚡ Initiating Async Generation Process on Server...</h3>`;
     displayArea.scrollIntoView({ behavior: 'smooth' });
 
-    // ========================================================
-    // THE NETWORK FETCH PIPELINE
-    // ========================================================
     fetch('http://localhost:5000/api/schedule/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            format,
-            registeredTeams,
-            startDate,
-            endDate,
-            allowedTimeSlots
-        })
+        body: JSON.stringify({ format, registeredTeams, startDate, endDate, allowedTimeSlots })
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) throw new Error("Server rejected generation request");
+        return response.json();
+    })
     .then(data => {
-        // Hand off backend data directly to our interface generator
-        renderMatrixTable(data, startDate, endDate, allowedTimeSlots);
+        const taskId = data.taskId;
+        displayArea.innerHTML = `<h3 style="color:#60a5fa;">⏳ Task created (${taskId}). Computing parallel matches in background...</h3>`;
+        pollTaskStatus(taskId, startDate, endDate, allowedTimeSlots);
     })
     .catch(err => {
         console.error(err);
@@ -155,7 +148,31 @@ function generateAntiCollisionFixtures() {
     });
 }
 
-// Draw the layout matrix grid using backend response payloads
+function pollTaskStatus(taskId, startDate, endDate, allowedTimeSlots) {
+    const displayArea = document.getElementById('bracket-container');
+    
+    const interval = setInterval(() => {
+        fetch(`http://localhost:5000/api/schedule/task/${taskId}`)
+            .then(res => res.json())
+            .then(task => {
+                if (task.status === "completed") {
+                    clearInterval(interval);
+                    renderMatrixTable(task.result, startDate, endDate, allowedTimeSlots);
+                } else if (task.status === "failed") {
+                    clearInterval(interval);
+                    displayArea.innerHTML = `<h3 style="color:#ef4444;">🚨 Background Task Failed: ${task.error}</h3>`;
+                } else {
+                    displayArea.innerHTML = `<h3 style="color:#60a5fa;">⏳ Server is compiling schedule columns... Please wait...</h3>`;
+                }
+            })
+            .catch(err => {
+                clearInterval(interval);
+                console.error("Polling error:", err);
+                displayArea.innerHTML = `<h3 style="color:#ef4444;">🚨 Lost connection while tracking background task.</h3>`;
+            });
+    }, 1000);
+}
+
 function renderMatrixTable(backendData, startDate, endDate, allowedTimeSlots) {
     const displayArea = document.getElementById('bracket-container');
     const { fixtures, overflowMatchesCount, dateRangeList, dynamicMatrixColumns } = backendData;
